@@ -14,10 +14,14 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://pypi.org/project/engression-pytorch/"
-Repository = "https://github.com/ecantuc/engression-pytorch"
+Repository = "https://github.com/emiliocantuc/engression-pytorch"
 
 [project.optional-dependencies]
 examples = ["matplotlib"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 
 [[tool.uv.index]]
