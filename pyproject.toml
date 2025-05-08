@@ -1,0 +1,27 @@
+[project]
+name = "engression-pytorch"
+version = "0.1.1"
+description = "The engression loss (energy score) proposed by Shen et al. for distributional regression with a few convenient wrappers, in Pytorch."
+authors = [
+    { name = "Emilio Cantu", email = "ecantuc@umich.edu" }
+]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "einops>=0.8.1",
+    "torch>=2.7.0",
+]
+
+[project.urls]
+Homepage = "https://pypi.org/project/engression-pytorch/"
+Repository = "https://github.com/ecantuc/engression-pytorch"
+
+[project.optional-dependencies]
+examples = ["matplotlib"]
+
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
