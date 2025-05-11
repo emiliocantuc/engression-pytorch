@@ -3,9 +3,9 @@ import torch.nn as nn
 
 from einops import repeat, rearrange
 
-def energy_score(y, preds, beta = 1.0, p = 2, return_components = False):
+def energy_score(y, preds, beta = 1.0, p = 2, lamb = 0.5, return_components = False):
     '''
-    Computes the energy score loss used in Engression for distributional regression.
+    Computes the generalized energy score loss used in Engression for distributional regression.
 
     This loss consists of two terms:
     - A data-fitting term that penalizes the distance between each predicted sample and the true target.
@@ -17,6 +17,7 @@ def energy_score(y, preds, beta = 1.0, p = 2, return_components = False):
                               where each prediction corresponds to an independently sampled noise input.
         beta (float): Exponent to apply to the norm (default: 1.0). Setting `beta=1.0` gives the energy score.
         p (float): The order of the norm used (e.g., 1 for L1, 2 for L2).
+        lamb (float): Weighting factor for the repulsion term.
         return_components (bool): If True, return a tuple with (total_loss, term1, term2) for analysis.
 
     Returns:
@@ -39,7 +40,7 @@ def energy_score(y, preds, beta = 1.0, p = 2, return_components = False):
     if m > 1:
         # cdist is convenient. The result shape before sum is (n, m, m).
         sum_pairwise_l1_dists = torch.cdist(preds, preds, p = p).pow(beta).sum()
-        term2 = - sum_pairwise_l1_dists / (n * 2 * m * (m - 1) * D)
+        term2 = - lamb * sum_pairwise_l1_dists / (n * m * (m - 1))
 
     if return_components:
         return term1 + term2, term1, term2
