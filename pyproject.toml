@@ -17,7 +17,13 @@ Homepage = "https://pypi.org/project/engression-pytorch/"
 Repository = "https://github.com/emiliocantuc/engression-pytorch"
 
 [project.optional-dependencies]
-examples = ["matplotlib"]
+examples = [
+    "matplotlib",
+]
+
+test = [
+    "pytest",
+]
 
 [build-system]
 requires = ["hatchling"]
