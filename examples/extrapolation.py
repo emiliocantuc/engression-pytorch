@@ -52,53 +52,59 @@ def train_data(n, input_dim, type = 'softplus', pre_additive_noise = True):
 
     return X, Y
 
-# example
-name = 'softplus'
-X, Y = train_data(50_000, 1, type = name, pre_additive_noise = True)
-ds = torch.utils.data.TensorDataset(X, Y)
-dl = torch.utils.data.DataLoader(ds, batch_size = 128, shuffle = True)
+def main():
+        
+    # example
+    name = 'softplus'
+    X, Y = train_data(50_000, 1, type = name, pre_additive_noise = True)
+    ds = torch.utils.data.TensorDataset(X, Y)
+    dl = torch.utils.data.DataLoader(ds, batch_size = 128, shuffle = True)
 
-# define model
-input_dim, hidden_dim, output_dim = 1, 128, 1
-noise_dim = 64
+    # define model
+    input_dim, hidden_dim, output_dim = 1, 128, 1
+    noise_dim = 64
 
-model = nn.Sequential(
-    nn.Linear(input_dim + noise_dim, hidden_dim),
-    nn.ReLU(),
-    nn.Linear(hidden_dim, hidden_dim),
-    nn.ReLU(),
-    nn.Linear(hidden_dim, output_dim)
-)
+    model = nn.Sequential(
+        nn.Linear(input_dim + noise_dim, hidden_dim),
+        nn.ReLU(),
+        nn.Linear(hidden_dim, hidden_dim),
+        nn.ReLU(),
+        nn.Linear(hidden_dim, output_dim)
+    )
 
-g = gConcat(model = model, noise_dim = noise_dim, m_train = 16)
+    g = gConcat(model = model, noise_dim = noise_dim, m_train = 16)
 
 
-# train
-opt = torch.optim.Adam(g.parameters())
-g.train()
+    # train
+    opt = torch.optim.Adam(g.parameters())
+    g.train()
 
-for x, y in dl:
-    opt.zero_grad()
-    preds = g(x)
-    loss = energy_score(y, preds)
-    loss.backward()
-    opt.step()
+    for x, y in dl:
+        opt.zero_grad()
+        preds = g(x)
+        loss = energy_score(y, preds)
+        loss.backward()
+        opt.step()
 
-    # print(loss.item())
+        # print(loss.item())
 
-# test extrapolation
-with torch.no_grad():
+    # test extrapolation
+    with torch.no_grad():
 
-    g.eval()
+        g.eval()
 
-    a, b = x_test_lims[name]
-    t = torch.linspace(a, b, 25)[:, None]
+        a, b = x_test_lims[name]
+        t = torch.linspace(a, b, 25)[:, None]
 
-    plt.scatter(X[:1000], Y[:1000], s = 1, alpha = 0.5, c = 'gray')
-    plt.plot(t, g(t).mean(1).flatten(), c = 'tab:blue', label = 'predicted median')
-    plt.plot(t, g_stars[name](t), c = 'tab:red', label = 'true median')
-    plt.legend()
-    plt.xlabel('x'); plt.ylabel('y')
+        plt.scatter(X[:1000], Y[:1000], s = 1, alpha = 0.5, c = 'gray')
+        plt.plot(t, g(t).mean(1).flatten(), c = 'tab:blue', label = 'predicted median')
+        plt.plot(t, g_stars[name](t), c = 'tab:red', label = 'true median')
+        plt.legend()
+        plt.xlabel('x'); plt.ylabel('y')
 
-    plt.tight_layout()
-    plt.savefig('example.png')
+        plt.tight_layout()
+        plt.savefig('example.png')
+        print('saved figure to example.png')
+
+if __name__ == '__main__':
+    main()

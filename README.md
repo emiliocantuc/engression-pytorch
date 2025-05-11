@@ -14,13 +14,17 @@ pip install engression-pytorch
 import torch
 from engression_pytorch import EnergyScoreLoss, gConcat
 
+batch_size, input_dim, out_dim = 32, 1, 1
+noise_dim = 100
+
 x = torch.randn(batch_size, input_dim)
 y = torch.randn(batch_size, out_dim)
-preds = torch.randn(batch_size, m, out_dim)
+
+model = nn.Linear(input_dim + noise_dim, out_dim)
 
 g = gConcat(
     model = model,
-    noise_dim = 100,
+    noise_dim = noise_dim,
     noise_type = 'normal',
     noise_scale = 1.0,
     m_train = 2, 
@@ -34,7 +38,7 @@ preds = g(x) # (batch_size, m_train, output_dim)
 loss = EnergyScoreLoss(beta = 1.0, p = 2)(y, preds)
 loss.backward()
 
-g.eval() # changes m to m_predict
+g.eval() # changes m to m_eval
 sample = g(x) # (batch_size, m_eval, output_dim)
 ```
 

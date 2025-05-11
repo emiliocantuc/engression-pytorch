@@ -176,8 +176,8 @@ wheels = [
 
 [[package]]
 name = "engression-pytorch"
-version = "0.1.1"
-source = { virtual = "." }
+version = "0.1.2"
+source = { editable = "." }
 dependencies = [
     { name = "einops" },
     { name = "torch" },
