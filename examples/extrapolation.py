@@ -72,7 +72,7 @@ def main():
         nn.Linear(hidden_dim, output_dim)
     )
 
-    g = gConcat(model = model, noise_dim = noise_dim, m_train = 16)
+    g = gConcat(model = model, noise_dim = noise_dim, m_train = 16, noise_type = 'uniform')
 
 
     # train
