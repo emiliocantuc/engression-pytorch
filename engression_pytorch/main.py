@@ -62,27 +62,36 @@ class EnergyScoreLoss(nn.Module):
         return energy_score(y, preds, beta = self.beta, p = self.p)
 
 
-def noise_fn_factory(noise_type, noise_dim, scale):
-    # Note scale != std (only for normal)
+def _sample_noise(x, noise_type, noise_dim, scale):
+    """
+    Generates noise vectors based on the specified noise type and scale.
+
+    Args:
+        x: Tensor of shape (batch_size, *)
+        noise_dim: Dimension of the noise vector.
+        noise_type: Type of noise to generate ('normal', 'uniform', 'laplace').
+        scale: Scale for the noise.
+
+    Returns:
+        Tensor of shape (batch_size, noise_dim, *).
+    """
     if noise_type == 'normal':
-        return lambda x: torch.randn((x.shape[0], noise_dim, *x.shape[2:]), device = x.device) * scale
+        return torch.randn((x.shape[0], noise_dim, *x.shape[2:]), device=x.device) * scale
     elif noise_type == 'uniform':
-        return lambda x: (torch.rand((x.shape[0], noise_dim, *x.shape[2:]), device = x.device) - 0.5) * scale
+        return (torch.rand((x.shape[0], noise_dim, *x.shape[2:]), device=x.device) - 0.5) * scale
     elif noise_type == 'laplace':
-        return lambda x: torch.distributions.Laplace(0, scale).sample((x.shape[0], noise_dim, *x.shape[2:])).to(x.device)
+        return torch.distributions.Laplace(0, scale).sample((x.shape[0], noise_dim, *x.shape[2:])).to(x.device)
     else:
         raise ValueError(f'Unknown noise type: {noise_type}')
 
 class gConcat(nn.Module):
 
-    def __init__(self, model, m_train, m_eval = 512, noise_type = 'normal', noise_dim = 64, noise_scale = 1.0, noise_fn = None):
+    def __init__(self, model, m_train, m_eval = 512, noise_type = 'normal', noise_dim = 64, noise_scale = 1.0):
         super().__init__()
         self.model = model
         self.m_train = m_train
         self.m_eval = m_eval
-        self.noise_fn = noise_fn
-        if noise_fn is None:
-            self.noise_fn = noise_fn_factory(noise_type, noise_dim, noise_scale)
+        self.noise_args = (noise_type, noise_dim, noise_scale)
     
     @property
     def m(self):
@@ -103,7 +112,7 @@ class gConcat(nn.Module):
         x = repeat(x, 'b ... -> b m ...', m = m)
         x = rearrange(x, 'b m ... -> (b m) ...')
 
-        eps = self.noise_fn(x).to(x.device)
+        eps = _sample_noise(x, *self.noise_args).to(x.device)
         
         x = torch.cat([x, eps], dim = 1)
         out = self.model(x)

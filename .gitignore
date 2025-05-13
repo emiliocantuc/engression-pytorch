@@ -1,5 +1,6 @@
 # Custom
 *.png
+*.pth
 .idea
 
 # Byte-compiled / optimized / DLL files
