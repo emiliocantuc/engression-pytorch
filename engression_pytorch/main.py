@@ -97,7 +97,7 @@ class gConcat(nn.Module):
     def m(self):
         return self.m_train if self.training else self.m_eval
     
-    def forward(self, x):
+    def forward(self, x, *args, **kwargs):
         """
         Performs `m` forward passes of the model with independently sampled noise vectors.
 
@@ -115,6 +115,6 @@ class gConcat(nn.Module):
         eps = _sample_noise(x, *self.noise_args).to(x.device)
         
         x = torch.cat([x, eps], dim = 1)
-        out = self.model(x)
+        out = self.model(x, *args, **kwargs)
         out = rearrange(out, '(b m) ... -> b m ...', b = b)
         return out
