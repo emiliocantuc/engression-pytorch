@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from engression_pytorch import EnergyScoreLoss, gConcat
 
 import os, pickle
+from types import SimpleNamespace
 
 
 def test_readme():
@@ -42,7 +43,6 @@ def test_readme():
     assert sample.shape == (batch_size, 512, out_dim)
 
 
-
 def test_pickle():
 
     input_dim, out_dim = 1, 1
@@ -66,3 +66,28 @@ def test_pickle():
         g2 = pickle.load(f)
     assert isinstance(g2, gConcat)
     os.remove('gConcat.pkl')
+
+def test_output_extractor():
+
+    batch_size, input_dim, out_dim = 32, 1, 1
+    noise_dim = 100
+
+    x = torch.randn(batch_size, input_dim)
+
+    def m_dict(x):
+        return {'output': nn.Linear(input_dim + noise_dim, out_dim)(x)}
+    
+    def m_attr(x):
+        return SimpleNamespace(output = nn.Linear(input_dim + noise_dim, out_dim)(x))
+    
+    def m_func(x):
+        return nn.Linear(input_dim + noise_dim, out_dim)(x)
+    
+    for m, out_extr in zip([m_dict, m_attr, m_func], ['output', 'output', lambda x: x]):
+        g = gConcat(model = m, m_train = 2, noise_dim = noise_dim,
+            output_extractor = out_extr,
+        ).train()
+
+        preds = g(x)
+        assert preds.shape == (batch_size, 2, out_dim)
+    

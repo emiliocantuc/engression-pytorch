@@ -86,12 +86,13 @@ def _sample_noise(x, noise_type, noise_dim, scale):
 
 class gConcat(nn.Module):
 
-    def __init__(self, model, m_train, m_eval = 512, noise_type = 'normal', noise_dim = 64, noise_scale = 1.0):
+    def __init__(self, model, m_train, m_eval = 512, noise_type = 'normal', noise_dim = 64, noise_scale = 1.0, output_extractor = None):
         super().__init__()
         self.model = model
         self.m_train = m_train
         self.m_eval = m_eval
-        self.noise_args = (noise_type, noise_dim, noise_scale)
+        self.noise_args = (noise_type, noise_dim, noise_scale) 
+        self.output_extractor = output_extractor
     
     @property
     def m(self):
@@ -106,15 +107,32 @@ class gConcat(nn.Module):
         Returns:
             Tensor of shape (batch_size, m, *)
         """
-        b, *rest = x.shape
-        m = self.m
+        b, *_ = x.shape
 
-        x = repeat(x, 'b ... -> b m ...', m = m)
-        x = rearrange(x, 'b m ... -> (b m) ...')
+        x = repeat(x, 'b ... -> (b m) ...', m = self.m)
+        print('xhere', x.shape)
 
         eps = _sample_noise(x, *self.noise_args).to(x.device)
         
         x = torch.cat([x, eps], dim = 1)
+
         out = self.model(x, *args, **kwargs)
+
+        if self.output_extractor:
+            out = self._get_out(out)
+
         out = rearrange(out, '(b m) ... -> b m ...', b = b)
+        return out
+
+    def _get_out(self, out):
+
+        if isinstance(self.output_extractor, str) and hasattr(out, self.output_extractor):
+            out = getattr(out, self.output_extractor)
+
+        elif isinstance(self.output_extractor, str) and isinstance(out, dict):
+            out = out[self.output_extractor]
+
+        elif callable(self.output_extractor):
+            out = self.output_extractor(out)
+            
         return out
