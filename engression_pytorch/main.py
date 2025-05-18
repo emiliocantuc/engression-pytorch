@@ -4,7 +4,7 @@ import torch.nn as nn
 from einops import repeat, rearrange
 
 def energy_score(y, preds, beta = 1.0, p = 2, lamb = 0.5, return_components = False):
-    '''
+    """
     Computes the generalized energy score loss used in Engression for distributional regression.
 
     This loss consists of two terms:
@@ -26,7 +26,7 @@ def energy_score(y, preds, beta = 1.0, p = 2, lamb = 0.5, return_components = Fa
             - If return_components is True, returns a tuple (total_loss, term1, term2), where:
                 - term1 is the fitting term (distance to true targets),
                 - term2 is the diversity term (negative pairwise distance among predictions).
-    '''
+    """
 
     assert preds.shape[0] == y.shape[0] and preds.shape[2:] == y.shape[1:], \
         'y and preds should only differ in the first dimension'
@@ -63,18 +63,7 @@ class EnergyScoreLoss(nn.Module):
 
 
 def _sample_noise(x, noise_type, noise_dim, scale):
-    """
-    Generates noise vectors based on the specified noise type and scale.
 
-    Args:
-        x: Tensor of shape (batch_size, *)
-        noise_dim: Dimension of the noise vector.
-        noise_type: Type of noise to generate ('normal', 'uniform', 'laplace').
-        scale: Scale for the noise.
-
-    Returns:
-        Tensor of shape (batch_size, noise_dim, *).
-    """
     if noise_type == 'normal':
         return torch.randn((x.shape[0], noise_dim, *x.shape[2:]), device=x.device) * scale
     elif noise_type == 'uniform':
@@ -84,16 +73,44 @@ def _sample_noise(x, noise_type, noise_dim, scale):
     else:
         raise ValueError(f'Unknown noise type: {noise_type}')
 
-class gConcat(nn.Module):
 
-    def __init__(self, model, m_train, m_eval = 512, noise_type = 'normal', noise_dim = 64, noise_scale = 1.0, output_extractor = None):
+
+class gSampler(nn.Module):
+    r"""
+    Wraps a deterministic model to produce *m* stochastic predictions per input.
+
+    Parameters
+    ----------
+    model : nn.Module
+        Backbone network.
+    m_train / m_eval : int
+        Number of noise draws in train / eval mode.
+    merge_mode : {"concat", "add", "multiply"} or Callable, default "concat"
+        If callable the interface is `f(x, eps) -> Tensor`.
+    noise_type : {"normal", "uniform", "laplace"}, default "normal"
+    noise_dim  : int, default 64
+    noise_scale: float, default 1.0
+    output_extractor : str | Callable | None, default None
+        Optional hook to pull/transform a sub-field of the model output.
+
+    Output
+    ------
+    Tensor shaped `(batch_size, m, …)`.
+    """
+
+    def __init__(self, model, m_train, m_eval = 512, noise_type = 'normal', noise_dim = 64, noise_scale = 1.0, merge_mode = 'concat', output_extractor = None):
         super().__init__()
         self.model = model
         self.m_train = m_train
         self.m_eval = m_eval
+        self.merge_mode = merge_mode
         self.noise_args = (noise_type, noise_dim, noise_scale) 
         self.output_extractor = output_extractor
-    
+
+        assert noise_type in ['normal', 'uniform', 'laplace'], f'Unknown noise type: {noise_type}'
+        for m in [m_train, m_eval]:
+            assert isinstance(m, int) and m > 0, f'm should be a positive integer, got {m}'
+
     @property
     def m(self):
         return self.m_train if self.training else self.m_eval
@@ -110,20 +127,31 @@ class gConcat(nn.Module):
         b, *_ = x.shape
 
         x = repeat(x, 'b ... -> (b m) ...', m = self.m)
-        print('xhere', x.shape)
 
         eps = _sample_noise(x, *self.noise_args).to(x.device)
         
-        x = torch.cat([x, eps], dim = 1)
+        # x = torch.cat([x, eps], dim = 1)
+        x = self.merge(x, eps)
 
         out = self.model(x, *args, **kwargs)
 
-        if self.output_extractor:
+        if self.output_extractor is not None:
             out = self._get_out(out)
 
         out = rearrange(out, '(b m) ... -> b m ...', b = b)
         return out
+    
+    def merge(self, x, eps):
 
+        if self.merge_mode == 'concat':
+            return torch.cat([x, eps], dim = 1)
+        elif self.merge_mode == 'add':
+            return x + eps
+        elif self.merge_mode == 'multiply':
+            return x * eps
+        else:
+            raise ValueError(f'Unknown merge_mode: {self.merge_mode}')
+    
     def _get_out(self, out):
 
         if isinstance(self.output_extractor, str) and hasattr(out, self.output_extractor):
@@ -136,3 +164,11 @@ class gConcat(nn.Module):
             out = self.output_extractor(out)
             
         return out
+    
+class gConcat(gSampler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, merge_mode = 'concat', **kwargs)
+
+class gAdd(gSampler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, merge_mode = 'add', **kwargs)

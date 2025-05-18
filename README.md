@@ -22,11 +22,12 @@ y = torch.randn(batch_size, out_dim)
 
 model = nn.Linear(input_dim + noise_dim, out_dim)
 
-g = gConcat(
+g = gSampler(
     model = model,
     noise_dim = noise_dim,
-    noise_type = 'normal',
+    noise_type = noise_type,
     noise_scale = 1.0,
+    merge_mode = 'concat', # 'add', or lambda x, eps: ...
     m_train = 2, 
     m_eval = 512,
 )
