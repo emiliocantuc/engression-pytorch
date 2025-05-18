@@ -58,7 +58,7 @@ def test_pickle():
         with open('_g.pkl', 'wb') as f: pickle.dump(g, f)
         with open('_g.pkl', 'rb') as f: g2 = pickle.load(f)
         assert isinstance(g2, c)
-        os.remove('g.pkl')
+        os.remove('_g.pkl')
 
 def test_output_extractor():
 
