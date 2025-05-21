@@ -53,16 +53,22 @@ def energy_score(y, preds, beta = 1.0, p = 2, lamb = 0.5, return_components = Fa
 
 
 class EnergyScoreLoss(nn.Module):
-    def __init__(self, beta = 1.0, p = 2):
+    
+    def __init__(self, beta = 1.0, p = 2, lamb = 0.5, return_components = False):
         super().__init__()
         self.beta = beta
         self.p = p
-
+        self.lamb = lamb
+        self.return_components = return_components
+        
     def forward(self, y, preds):
-        return energy_score(y, preds, beta = self.beta, p = self.p)
+        return energy_score(y, preds, beta = self.beta, p = self.p, lamb = self.lamb, return_components = self.return_components)
 
 
 def _sample_noise(x, noise_type, noise_dim, scale):
+
+    if noise_dim is None:
+        noise_dim = x.shape[1] if x.ndim > 2 else 1
 
     if noise_type == 'normal':
         return torch.randn((x.shape[0], noise_dim, *x.shape[2:]), device=x.device) * scale
@@ -88,7 +94,8 @@ class gSampler(nn.Module):
     merge_mode : {"concat", "add", "multiply"} or Callable, default "concat"
         If callable the interface is `f(x, eps) -> Tensor`.
     noise_type : {"normal", "uniform", "laplace"}, default "normal"
-    noise_dim  : int, default 64
+    noise_dim  : int | None, default None
+        Dimension of the noise vector. If None, it is set to the input dimension.
     noise_scale: float, default 1.0
     output_extractor : str | Callable | None, default None
         Optional hook to pull/transform a sub-field of the model output.
@@ -98,7 +105,7 @@ class gSampler(nn.Module):
     Tensor shaped `(batch_size, m, …)`.
     """
 
-    def __init__(self, model, m_train, m_eval = 512, noise_type = 'normal', noise_dim = 64, noise_scale = 1.0, merge_mode = 'concat', output_extractor = None):
+    def __init__(self, model, m_train, m_eval = 512, noise_type = 'normal', noise_dim = None, noise_scale = 1.0, merge_mode = 'concat', output_extractor = None):
         super().__init__()
         self.model = model
         self.m_train = m_train
