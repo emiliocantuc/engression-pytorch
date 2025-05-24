@@ -1,6 +1,6 @@
 [project]
 name = "engression-pytorch"
-version = "0.1.2"
+version = "0.1.3"
 description = "The engression loss (energy score) proposed by Shen et al. for distributional regression with a few convenient wrappers, in Pytorch."
 authors = [
     { name = "Emilio Cantu", email = "ecantuc@umich.edu" }
